@@ -1,0 +1,25 @@
+{
+  "name": "datamosh-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "preact": "^10.26.5",
+    "rc-slider": "^11.1.8",
+    "react-knob": "^0.1.0",
+    "styled-components": "^6.1.18",
+    "three": "^0.177.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.1",
+    "@types/three": "^0.177.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5"
+  }
+}
