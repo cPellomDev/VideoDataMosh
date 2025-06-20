@@ -1,6 +1,7 @@
 import { useRef, useState } from 'preact/hooks'
 import styled, { createGlobalStyle } from 'styled-components'
 import { TrippyVideoCanvas } from './TrippyVideoCanvas'
+import { VHSOverlay } from './VHSOverlay'
 import Slider from 'rc-slider'
 import 'rc-slider/assets/index.css'
 
@@ -97,16 +98,51 @@ const PlayPauseButton = styled.button`
   }
 `
 
+const ButtonsContainer = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+`;
+
+const ActionButton = styled.button`
+  padding: 10px 20px;
+  background: #333;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+  
+  &:hover {
+    background: #444;
+  }
+  
+  &.active {
+    background: #555;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.3);
+  }
+`;
+
+const defaultEffects = {
+  waveIntensity: 0.02,
+  waveFrequency: 40,
+  colorShift: 0,
+  speed: 2,
+  glitchAmount: 0,
+  scanlineIntensity: 0.1,
+  staticAmount: 0.05,
+  trackingNoiseAmount: 0.1,
+  chromaticAberration: 0.002,
+  verticalJitter: 0.001
+};
+
 export function App() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [effects, setEffects] = useState({
-    waveIntensity: 0.02,
-    waveFrequency: 40,
-    colorShift: 0,
-    speed: 2,
-    glitchAmount: 0
-  })
+  const [showVHSOverlay, setShowVHSOverlay] = useState(false)
+  const [videoTime, setVideoTime] = useState({ current: 0, duration: 0 })
+  const [effects, setEffects] = useState(defaultEffects)
 
   const handleFileChange = (e: Event) => {
     const target = e.target as HTMLInputElement
@@ -127,25 +163,55 @@ export function App() {
     }))
   }
 
+  const resetEffects = () => {
+    setEffects({
+      waveIntensity: 0,
+      waveFrequency: 0,
+      colorShift: 0,
+      speed: 0,
+      glitchAmount: 0,
+      scanlineIntensity: 0,
+      staticAmount: 0,
+      trackingNoiseAmount: 0,
+      chromaticAberration: 0,
+      verticalJitter: 0
+    });
+  };
+
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying)
   }
+
+  const handleTimeUpdate = (currentTime: number, duration: number) => {
+    setVideoTime({ current: currentTime, duration });
+  };
 
   return (
     <>
       <GlobalStyle />
       <AppContainer>
-        <FileInputWrapper>
-          <input
-            type="file"
-            id="videoInput"
-            accept="video/*"
-            onChange={handleFileChange}
-          />
-          <label htmlFor="videoInput">
-            {videoUrl ? 'Change Video' : 'Select Video'}
-          </label>
-        </FileInputWrapper>
+        <ButtonsContainer>
+          <FileInputWrapper>
+            <input
+              type="file"
+              id="videoInput"
+              accept="video/*"
+              onChange={handleFileChange}
+            />
+            <label htmlFor="videoInput">
+              {videoUrl ? 'Change Video' : 'Select Video'}
+            </label>
+          </FileInputWrapper>
+          <ActionButton onClick={resetEffects}>
+            Reset Effects
+          </ActionButton>
+          <ActionButton 
+            className={showVHSOverlay ? 'active' : ''} 
+            onClick={() => setShowVHSOverlay(!showVHSOverlay)}
+          >
+            VHS Display
+          </ActionButton>
+        </ButtonsContainer>
 
         <VideoSection>
           {videoUrl && (
@@ -155,7 +221,15 @@ export function App() {
                 videoUrl={videoUrl}
                 isPlaying={isPlaying}
                 effects={effects}
+                onTimeUpdate={handleTimeUpdate}
               />
+              {showVHSOverlay && (
+                <VHSOverlay
+                  isPlaying={isPlaying}
+                  currentTime={videoTime.current}
+                  videoDuration={videoTime.duration}
+                />
+              )}
               <PlayPauseButton onClick={togglePlayPause}>
                 {isPlaying ? 'Pause' : 'Play'}
               </PlayPauseButton>
@@ -216,6 +290,61 @@ export function App() {
               step={0.001}
               value={effects.glitchAmount}
               onChange={(v) => updateEffect('glitchAmount', Array.isArray(v) ? v[0] : v)}
+            />
+          </ControlGroup>
+
+          <ControlGroup>
+            <label>Scanline Intensity</label>
+            <Slider
+              min={0}
+              max={0.5}
+              step={0.01}
+              value={effects.scanlineIntensity}
+              onChange={(v) => updateEffect('scanlineIntensity', Array.isArray(v) ? v[0] : v)}
+            />
+          </ControlGroup>
+
+          <ControlGroup>
+            <label>Static Amount</label>
+            <Slider
+              min={0}
+              max={0.2}
+              step={0.01}
+              value={effects.staticAmount}
+              onChange={(v) => updateEffect('staticAmount', Array.isArray(v) ? v[0] : v)}
+            />
+          </ControlGroup>
+
+          <ControlGroup>
+            <label>Tracking Noise</label>
+            <Slider
+              min={0}
+              max={0.5}
+              step={0.01}
+              value={effects.trackingNoiseAmount}
+              onChange={(v) => updateEffect('trackingNoiseAmount', Array.isArray(v) ? v[0] : v)}
+            />
+          </ControlGroup>
+
+          <ControlGroup>
+            <label>Chromatic Aberration</label>
+            <Slider
+              min={0}
+              max={0.01}
+              step={0.0001}
+              value={effects.chromaticAberration}
+              onChange={(v) => updateEffect('chromaticAberration', Array.isArray(v) ? v[0] : v)}
+            />
+          </ControlGroup>
+
+          <ControlGroup>
+            <label>Vertical Jitter</label>
+            <Slider
+              min={0}
+              max={0.005}
+              step={0.0001}
+              value={effects.verticalJitter}
+              onChange={(v) => updateEffect('verticalJitter', Array.isArray(v) ? v[0] : v)}
             />
           </ControlGroup>
         </Controls>
