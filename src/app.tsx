@@ -2,6 +2,7 @@ import { useRef, useState } from 'preact/hooks'
 import styled, { createGlobalStyle } from 'styled-components'
 import { TrippyVideoCanvas } from './TrippyVideoCanvas'
 import { VHSOverlay } from './VHSOverlay'
+import { VideoProcessor } from './VideoProcessor'
 import Slider from 'rc-slider'
 import 'rc-slider/assets/index.css'
 
@@ -28,8 +29,8 @@ const AppContainer = styled.div`
 `
 
 const VideoSection = styled.div`
-  width: 85%;
-  max-width: 1200px;
+  width: 95%;
+  max-width: 1300px;
   aspect-ratio: 16/9;
   background: #111;
   border-radius: 8px;
@@ -38,8 +39,8 @@ const VideoSection = styled.div`
 `
 
 const Controls = styled.div`
-  width: 85%;
-  max-width: 1200px;
+  width: 95%;
+  max-width: 1300px;
   padding: 20px;
   background: rgba(0, 0, 0, 0.5);
   border-radius: 8px;
@@ -52,7 +53,7 @@ const Controls = styled.div`
 const ControlGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20px;
   
   label {
     font-size: 14px;
@@ -73,6 +74,7 @@ const FileInputWrapper = styled.div`
     border-radius: 4px;
     cursor: pointer;
     transition: background 0.2s;
+    margin-bottom: -20px;
     
     &:hover {
       background: #444;
@@ -100,7 +102,7 @@ const PlayPauseButton = styled.button`
 
 const ButtonsContainer = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 20px;
   margin-bottom: 20px;
 `;
 
@@ -124,6 +126,21 @@ const ActionButton = styled.button`
   }
 `;
 
+const ProcessingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  z-index: 100;
+`;
+
 const defaultEffects = {
   waveIntensity: 0.02,
   waveFrequency: 40,
@@ -143,6 +160,9 @@ export function App() {
   const [showVHSOverlay, setShowVHSOverlay] = useState(false)
   const [videoTime, setVideoTime] = useState({ current: 0, duration: 0 })
   const [effects, setEffects] = useState(defaultEffects)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [iFrameInterval, setIFrameInterval] = useState(12)
+  const videoProcessor = useRef<VideoProcessor | null>(null)
 
   const handleFileChange = (e: Event) => {
     const target = e.target as HTMLInputElement
@@ -186,6 +206,37 @@ export function App() {
     setVideoTime({ current: currentTime, duration });
   };
 
+  const datamoshCurrentVideo = async () => {
+    if (!videoUrl) return;
+    
+    setIsProcessing(true);
+    setIsPlaying(false);
+    
+    try {
+      if (!videoProcessor.current) {
+        videoProcessor.current = new VideoProcessor();
+      }
+
+      // Fetch the current video as a blob
+      const response = await fetch(videoUrl);
+      const videoBlob = await response.blob();
+
+      // Process the video
+      const mosheddBlob = await videoProcessor.current.datamoshVideo(videoBlob, iFrameInterval);
+
+      // Clean up old URL and create new one
+      URL.revokeObjectURL(videoUrl);
+      const newUrl = URL.createObjectURL(mosheddBlob);
+      setVideoUrl(newUrl);
+      setIsPlaying(true);
+    } catch (error) {
+      console.error('Error during datamoshing:', error);
+      alert('Failed to process video. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <>
       <GlobalStyle />
@@ -211,6 +262,11 @@ export function App() {
           >
             VHS Display
           </ActionButton>
+          {videoUrl && (
+            <ActionButton onClick={datamoshCurrentVideo}>
+              Datamosh Video
+            </ActionButton>
+          )}
         </ButtonsContainer>
 
         <VideoSection>
@@ -229,6 +285,11 @@ export function App() {
                   currentTime={videoTime.current}
                   videoDuration={videoTime.duration}
                 />
+              )}
+              {isProcessing && (
+                <ProcessingOverlay>
+                  Processing video... This may take a moment.
+                </ProcessingOverlay>
               )}
               <PlayPauseButton onClick={togglePlayPause}>
                 {isPlaying ? 'Pause' : 'Play'}
@@ -345,6 +406,17 @@ export function App() {
               step={0.0001}
               value={effects.verticalJitter}
               onChange={(v) => updateEffect('verticalJitter', Array.isArray(v) ? v[0] : v)}
+            />
+          </ControlGroup>
+
+          <ControlGroup>
+            <label>I-Frame Interval (Datamosh Intensity)</label>
+            <Slider
+              min={2}
+              max={30}
+              step={1}
+              value={iFrameInterval}
+              onChange={(v) => setIFrameInterval(Array.isArray(v) ? v[0] : v)}
             />
           </ControlGroup>
         </Controls>
